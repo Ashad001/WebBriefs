@@ -5,28 +5,38 @@ from crewai import Agent, Task, Process, Crew
 from crewai_tools import WebsiteSearchTool, SerperDevTool
 from langchain_community.utilities import GoogleSerperAPIWrapper
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 class WebpageSummarizerAI:
     def __init__(self, web_site: str = None):
+        self.website = web_site
+        print(self.website)
         self.setup_environment()
-        self.setup_tools(web_site)
+        self.setup_tools()
         self.setup_agents()
         self.setup_tasks()
         self.setup_crew()
 
     def setup_environment(self):
         load_dotenv()
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
-            verbose=False, 
-            temperature=0.5,
-            google_api_key=os.getenv("GEMINI_API_KEY")
-        )
-        self.serper_api_key = os.getenv("SERPER_API_KEY")
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.serper_api_key = os.getenv("SERPER_API_KEY")
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
+        # os.environ["OPENAI_MODEL_NAME"]="gpt-3.5-turbo-instruct"
+        self.openai_llm = ChatOpenAI(
+            model="gpt-3.5-turbo",
+            verbose=False,
+            api_key=self.openai_api_key
+        )
+        # self.gemini_llm = ChatGoogleGenerativeAI(
+        #     model="gemini-1.5-flash",
+        #     verbose=False, 
+        #     temperature=0.5,
+        #     google_api_key=self.gemini_api_key
+        # )
 
-    def setup_tools(self, web_site: str):
-        self.web_extractor = WebsiteSearchTool(website=web_site)
+    def setup_tools(self):
+        self.web_extractor = WebsiteSearchTool(website=self.website)
         self.serper_tool = SerperDevTool()
 
     def setup_agents(self):
@@ -36,7 +46,7 @@ class WebpageSummarizerAI:
             backstory="""You are an expert at analyzing and extracting key information from any webpage. You know how to identify and summarize the most 
             relevant and useful content, ensuring that the summary is comprehensive and accurate.""",
             verbose=False,
-            llm=self.llm,
+            # llm=self.openai_llm,
             allow_delegation=False,
             tools=[self.web_extractor],
         )
@@ -47,7 +57,7 @@ class WebpageSummarizerAI:
             backstory="""You are skilled at summarizing large amounts of information into concise, clear, and useful content. You know how to highlight 
             the most important points and present them in a way that is easy to understand for the user.""",
             verbose=False,
-            llm=self.llm,
+            # llm=self.openai_llm,
             allow_delegation=True,
         )
 
@@ -64,7 +74,7 @@ class WebpageSummarizerAI:
             the most important and useful information. The summary should be well-organized and present the key points clearly.""",
             agent=self.summarizer,
             expected_output="""A concise and well-organized summary that highlights the most important and useful information from the extracted content. The summary should be clear and easy to understand.""",
-            output_file="summary.txt"
+            output_file=f"summary_{len(self.website)}.txt"
         )
 
     def setup_crew(self):
@@ -75,12 +85,11 @@ class WebpageSummarizerAI:
             process=Process.sequential,
         )
 
-    def run(self, url):
+    def run(self):
         result = self.crew.kickoff()
-        print("######################")
-        print(result)
+        return result
 
 if __name__ == "__main__":
     url = input("Enter the webpage URL: ")
     webpage_summarizer_ai = WebpageSummarizerAI(url)
-    webpage_summarizer_ai.run(url)
+    webpage_summarizer_ai.run()
